@@ -87,29 +87,27 @@ int main()
 
     // read custom control times for muitnieki, if any
     char t, m_type, t_type;
-    int m_id, c_time, t_id;
-    // TODO: doesn't transition from T to t_type read, need to fix
+    int m_id, custom_time, t_id;
+    // DONE: doesn't transition from T to t_type read, need to fix
     fin >> t;
-    if (t == 'T')
+        
+    while (t == 'T')
     {
-        do
-        {
-            fin >> m_type >> m_id >> c_time;
-            cout << t << " " << m_type << " " << m_id << " " << c_time << endl;
-            fin >> t;
-        } while (t == 'T');        
+        fin >> m_type >> m_id >> custom_time;
+        cout << t << " " << m_type << " " << m_id << " " << custom_time << endl;
+        fin >> t;
     }
-    else if (t == 'X') cout << "nothing" << endl;
-    else
+    if (t == 'X') cout << "nothing" << endl;
+    while (t == 'P' || t == 'N')
     {
         t_type = t;
-        do
-        {
-            fin >> t_id;
-            cout << t_type << " " << t_id << endl;
-            fin >> t_type;
-        } while (t_type != 'X');
+        fin >> t_id;
+        cout << t_type << " " << t_id << endl;
+        fin >> t;
+        if (t == 'X') break;
     }
+    
+
     // make neccessary adjustments to control times for muitnieki
 
     // read and sort travelers
