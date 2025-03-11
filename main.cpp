@@ -7,8 +7,7 @@ namespace fs = std::filesystem;
 /*
     Task List:
     TODO: 1) Read data from file "customs.in"
-                read file line by line, char by char
-                ( can int be read, or will conversion be needed?)
+                read file by variables
     TODO: 2) Output results to "customs.out"
     TODO: 3) Muitnieki: count [1...99]; 
                 Control time [1...100000];
@@ -36,9 +35,11 @@ namespace fs = std::filesystem;
     // need to know if Muitnieks is with traveler or not
 struct Muitnieks
 {
+    int id;
     int control_time;
     bool is_busy = false;
-    Muitnieks(int c): control_time(c) {};
+    Muitnieks(int i, int c): id(i), control_time(c) {};
+    Muitnieks() {};
 
     // TODO: if Muitnieks is with travler, set is_busy to true
         // when traveler leaves, set is_busy to false
@@ -49,6 +50,7 @@ struct Traveler
 {
     char type;
     int id;
+    int muitnieks_id;
     int leaving_time = 0;
     Traveler(char t, int i): type(t), id(i) {};
 
@@ -84,7 +86,25 @@ int main()
     cout << P_Muitnieki_count << " " << N_Muitnieki_count << " " << P_Default_Control_time << " " << N_Default_Control_time << endl;
 
     // initialize arrays for Muitnieki
-
+    Muitnieks P_Muitnieki[P_Muitnieki_count] = {};
+    Muitnieks N_Muitnieki[N_Muitnieki_count] = {};
+    // fill initial values for Muitnieki
+    cout << "P array" << endl;
+    for ( int i =1 ; i <= P_Muitnieki_count; i++)
+    {
+        P_Muitnieki[i] = Muitnieks(i, P_Default_Control_time);
+        // test initialization
+        
+        cout << P_Muitnieki[i].id << " " << P_Muitnieki[i].control_time << endl;
+    }
+    cout << "N array" << endl;
+    for ( int i =1 ; i <= N_Muitnieki_count; i++)
+    {
+        N_Muitnieki[i] = Muitnieks(i, N_Default_Control_time);
+        // test initialization
+        
+        cout << N_Muitnieki[i].id << " " << N_Muitnieki[i].control_time << endl;
+    }
     // read custom control times for muitnieki, if any
     char t, m_type, t_type;
     int m_id, custom_time, t_id;
