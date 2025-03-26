@@ -71,7 +71,7 @@ int main()
     // cout << "Current working directory: " << fs::current_path() << endl;
     // open file to read
     // ifstream fin("customs.in");
-    ifstream fin("C:\\Users\\marti\\Projects\\Algoritmi\\Muita\\input\\customs.i4");
+    ifstream fin("C:\\Users\\marti\\Projects\\Algoritmi\\Muita\\input\\customs.i5");
     if (!fin)
     {
         cout << "File not found!" << endl;
@@ -85,12 +85,12 @@ int main()
     // test reading first line to int variables
     cout << P_Muitnieki_count << " " << N_Muitnieki_count << " " << P_Default_Control_time << " " << N_Default_Control_time << endl;
 
-    // initialize arrays for Muitnieki
-    Muitnieks P_Muitnieki[P_Muitnieki_count] = {};
-    Muitnieks N_Muitnieki[N_Muitnieki_count] = {};
+    // initialize arrays for Muitnieki; Muitnieki_count + 1 because start count from 1 not 0
+    Muitnieks P_Muitnieki[P_Muitnieki_count + 1] = {};
+    Muitnieks N_Muitnieki[N_Muitnieki_count + 1] = {};
     // fill initial values for Muitnieki
     cout << "P array" << endl;
-    for ( int i =1 ; i <= P_Muitnieki_count; i++)
+    for ( int i = 1 ; i <= P_Muitnieki_count; i++)
     {
         P_Muitnieki[i] = Muitnieks(i, P_Default_Control_time);
         // test initialization
@@ -114,6 +114,8 @@ int main()
     while (t == 'T')
     {
         fin >> m_type >> m_id >> custom_time;
+        // make neccessary adjustments to control times for muitnieki
+        m_type == 'P' ? P_Muitnieki[m_id].control_time = custom_time : N_Muitnieki[m_id].control_time = custom_time;
         cout << t << " " << m_type << " " << m_id << " " << custom_time << endl;
         fin >> t;
     }
@@ -128,7 +130,17 @@ int main()
     }
     
 
-    // make neccessary adjustments to control times for muitnieki
+    // test muitnieki array contents
+    cout << "P array" << endl;
+    for ( int i =1 ; i <= P_Muitnieki_count; i++)
+    {
+        cout << P_Muitnieki[i].id << " " << P_Muitnieki[i].control_time << endl;
+    }
+    cout << "N array" << endl;
+    for ( int i =1 ; i <= N_Muitnieki_count; i++)
+    {
+        cout << N_Muitnieki[i].id << " " << N_Muitnieki[i].control_time << endl;
+    }
 
     // read and sort travelers
 
