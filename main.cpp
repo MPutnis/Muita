@@ -107,15 +107,18 @@ class Buffer
         }
 
         // remove traveler from buffer
-        Traveler dequeue()
+        Traveler dequeue( int moment_in_time)
         {
             if (isEmpty())
             {
                 cout << "Buffer is empty!" << endl;
                 throw runtime_error("Buffer is empty!");
             }
+            front->waiting_time = moment_in_time - front->traveler.id; // Calculate waiting time for the traveler
             TravelerNode* temp = front;
             Traveler t = front->traveler; // Get the traveler from the front node
+            t.leaving_time += front->waiting_time; // Update leaving time with waiting time
+
             // Move front to the next node
             front = front->next;
             
@@ -393,7 +396,7 @@ int main()
                     P_Muitnieki_availability[i] = false;
                     traveler.muitnieks_id = i;
                     // set leaving time for traveler
-                    traveler.leaving_time = t_id + P_Muitnieki_control_time[i];
+                    traveler.leaving_time += t_id + P_Muitnieki_control_time[i];
                     cout << "Traveler " << traveler.id << " is leaving P_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
                     Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
                     break;
@@ -418,7 +421,7 @@ int main()
                     N_Muitnieki_availability[i] = false;
                     traveler.muitnieks_id = i;
                     // set leaving time for traveler
-                    traveler.leaving_time = t_id + N_Muitnieki_control_time[i];
+                    traveler.leaving_time += t_id + N_Muitnieki_control_time[i];
                     cout << "Traveler " << traveler.id << " is leaving N_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
                     Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
                     break;
@@ -460,7 +463,7 @@ int main()
     {
         while (!P_buffer.isEmpty())
         {
-            Traveler t = P_buffer.dequeue();
+            Traveler t = P_buffer.dequeue(0);
             cout << "Traveler " << t.id << " is in P_buffer" << endl;
         }
     }
@@ -474,7 +477,7 @@ int main()
     {
         while (!N_buffer.isEmpty())
         {
-            Traveler t = N_buffer.dequeue();
+            Traveler t = N_buffer.dequeue(0);
             cout << "Traveler " << t.id << " is in N_buffer" << endl;
         }
     }
