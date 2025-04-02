@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
-#include <filesystem>
+//#include <filesystem>
 
 using namespace std;
-namespace fs = std::filesystem;
+//namespace fs = std::filesystem;
 /*
     Task List:
     TODO: 1) Read data from file "customs.in"
@@ -29,6 +29,61 @@ namespace fs = std::filesystem;
                     prioritize Citizens over Non-Citizens,
                     same type travelers are sorted by relevant Muitnieks_ID in ascending order
 */
+// *********** PROTOTYPES ***********
+class Buffer;
+class DepartureBST;
+struct Traveler;
+void assignTraveler( Traveler& );
+
+// *********** GLOBALS ***********
+const unsigned int MAX_LEAVING_TIME = 4000000000;
+// variables for Muitnieki
+int P_Muitnieki_count, N_Muitnieki_count;
+int P_Default_Control_time, N_Default_Control_time;
+int* P_Muitnieki_control_time;
+bool* P_Muitnieki_availability;
+int* N_Muitnieki_control_time;
+bool* N_Muitnieki_availability;
+
+// initialize arays
+void initializeGlobals()
+{
+    P_Muitnieki_control_time = new int[P_Muitnieki_count + 1];
+    P_Muitnieki_availability = new bool[P_Muitnieki_count + 1];
+    N_Muitnieki_control_time = new int[N_Muitnieki_count + 1];
+    N_Muitnieki_availability = new bool[N_Muitnieki_count + 1];
+
+    for (int i = 0; i <= P_Muitnieki_count; i++)
+    {
+        P_Muitnieki_control_time[i] = P_Default_Control_time;
+        P_Muitnieki_availability[i] = true;
+
+        // test initialization
+        cout << i << " " << P_Muitnieki_control_time[i] << " " << P_Muitnieki_availability[i] << endl;
+    }
+    for (int i = 0; i <= N_Muitnieki_count; i++)
+    {
+        N_Muitnieki_control_time[i] = N_Default_Control_time;
+        N_Muitnieki_availability[i] = true;
+
+        // test initialization
+        cout << i << " " << N_Muitnieki_control_time[i] << " " << N_Muitnieki_availability[i] << endl;
+    }
+}
+
+// cleanup arrays
+void cleanupGlobals()
+{
+    delete[] P_Muitnieki_control_time;
+    delete[] P_Muitnieki_availability;
+    delete[] N_Muitnieki_control_time;
+    delete[] N_Muitnieki_availability;
+}
+
+
+
+
+// *********** CLASSES ***********
 
 // class for Muitnieki
     // is it needed if the only value is control time?, is it?
@@ -153,6 +208,9 @@ class Buffer
             }
         }
 };
+// global buffers
+Buffer P_buffer;
+Buffer N_buffer;
 
 // departure management( BST)
 struct DepartureNode
@@ -265,18 +323,30 @@ class DepartureBST
                 else
                 {
                     // found the departure time, add traveler to the list
-                    // TODO: travelers must be sorted by muitnieks ID
-                    if (t.type == 'P')
+                    TravelerNode* newTraveler = new TravelerNode(t);
+                    TravelerNode** travelerList = (t.type == 'P') ? &node->P_travelers : &node->N_travelers;
+
+                    // Insert the new traveler in the sorted position based on muitnieks_id
+                    TravelerNode* current = *travelerList;
+                    TravelerNode* previous = nullptr;
+
+                    while (current != nullptr && current->traveler.muitnieks_id < t.muitnieks_id)
                     {
-                        TravelerNode* newTraveler = new TravelerNode(t);
-                        newTraveler->next = node->P_travelers;
-                        node->P_travelers = newTraveler;
+                        previous = current;
+                        current = current->next;
                     }
-                    else if (t.type == 'N')
+
+                    if (previous == nullptr)
                     {
-                        TravelerNode* newTraveler = new TravelerNode(t);
-                        newTraveler->next = node->N_travelers;
-                        node->N_travelers = newTraveler;
+                        // Insert at the beginning of the list
+                        newTraveler->next = *travelerList;
+                        *travelerList = newTraveler;
+                    }
+                    else
+                    {
+                        // Insert in the middle or end of the list
+                        previous->next = newTraveler;
+                        newTraveler->next = current;
                     }
                     return;
                 }
@@ -284,6 +354,100 @@ class DepartureBST
             // if the departure time is not found, create a new node and add traveler to it
             insert(time);
             addTraveler(time, t);
+        }
+        // last processed departure node
+        DepartureNode* last_processed_node = nullptr;
+
+        // find departure times in range between previous(excluding) and current(including) arrival
+        void processDepartuesInRange(unsigned int start_time, unsigned int end_time)
+        {
+            bool new_departures_added = true;
+            while (new_departures_added)
+            {
+                new_departures_added = false;
+                DepartureNode* node = (last_processed_node != nullptr) ? last_processed_node : root;
+
+                // Traverse BST starting from the last processed node
+                while (node != nullptr)
+                {
+                    if (node->leaving_time > start_time && node->leaving_time <= end_time)
+                    {
+                        // process all travelers attached to this node
+                        TravelerNode* p = node->P_travelers;
+                        while (p != nullptr)
+                        {
+                            // set Muitnieks availability to true
+                            P_Muitnieki_availability[p->traveler.muitnieks_id] = true;
+                            //test output
+                            std::cout << "P_Muitnieks " << p->traveler.muitnieks_id << " is free" << endl;
+                            // if there are travelers in the buffer, dequeue one and assign to Muitnieks
+                            if (!P_buffer.isEmpty())
+                            {
+                                Traveler traveler = P_buffer.dequeue(node->leaving_time);
+                                assignTraveler(traveler);
+
+                                new_departures_added = true; // new departures added
+                            }
+                            // go to next traveler, if there is one
+                            p = p->next;
+                        }
+                        TravelerNode* n = node->N_travelers;
+                        while (n != nullptr)
+                        {
+                            // set Muitnieks availability to true
+                            N_Muitnieki_availability[n->traveler.muitnieks_id] = true;
+                            //test output
+                            std::cout << "N_Muitnieks " << n->traveler.muitnieks_id << " is free" << endl;
+                            // if there are travelers in the buffer, dequeue one and assign to Muitnieks
+                            if (!N_buffer.isEmpty())
+                            {
+                                Traveler traveler = N_buffer.dequeue(node->leaving_time);
+                                assignTraveler(traveler);
+
+                                new_departures_added = true; // new departures added
+                                // TODO: could possibly assign traveler directly to the Muitnieks that was just freed up
+                            }
+                            // go to next traveler, if there is one
+                            n = n->next;
+                        }
+
+                        // update last processed node
+                        last_processed_node = node;
+                    }
+                    // move to the next node in the BST
+                    if (node->leaving_time <= end_time)
+                        node = findNextNode(node);
+                    else
+                        break;
+                }
+            }
+        }
+        // helper function to find the next node in the BST
+        DepartureNode* findNextNode(DepartureNode* node) 
+        {
+            if (node->right != nullptr) {
+                // Find the leftmost node in the right subtree
+                node = node->right;
+                while (node->left != nullptr) {
+                    node = node->left;
+                }
+                return node;
+            }
+        
+            // Traverse up the tree to find the next node
+            DepartureNode* parent = root; // Start from the root
+            DepartureNode* successor = nullptr;
+            while (parent != nullptr) {
+                if (node->leaving_time < parent->leaving_time) {
+                    successor = parent;
+                    parent = parent->left;
+                } else if (node->leaving_time > parent->leaving_time) {
+                    parent = parent->right;
+                } else {
+                    break;
+                }
+            }
+            return successor;
         }
 
         // write all departures to file
@@ -298,6 +462,83 @@ class DepartureBST
             destroy(root); // Free the memory of the BST
         }
 };
+//  global departure BST
+DepartureBST Departures;
+
+// *********** FUNCTIONS ***********
+
+// helper function to find a free muitnieks for a traveler
+void assignTraveler( Traveler& traveler)
+{
+    if( traveler.type == 'P')
+    // check  if any P_Muitniki are free
+    {
+        for (int i = 1; i <= P_Muitnieki_count; i++)
+        {
+            if (P_Muitnieki_availability[i] == true)
+            {
+                // if free, set availability to false and set traveler Muitnieks ID
+                P_Muitnieki_availability[i] = false;
+                traveler.muitnieks_id = i;
+                // set leaving time for traveler
+                traveler.leaving_time += traveler.id + P_Muitnieki_control_time[i];
+                // test output
+                std::cout << "Traveler " << traveler.id << " is leaving P_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
+                Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
+                return;
+            }
+        }
+    }
+    else if (traveler.type == 'N')
+    {
+        // check if any N_Muitnieki are free
+        for (int i = 1; i <= N_Muitnieki_count; i++)
+        {
+            if (N_Muitnieki_availability[i] == true)
+            {
+                // if free, set availability to false and set traveler Muitnieks ID
+                N_Muitnieki_availability[i] = false;
+                traveler.muitnieks_id = i;
+                // set leaving time for traveler
+                traveler.leaving_time += traveler.id + N_Muitnieki_control_time[i];
+                // test output
+                cout << "Traveler " << traveler.id << " is leaving N_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
+                Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
+                return;
+            }
+        }
+    }
+}
+
+// helper function to buffer a traveler
+void bufferTraveler( Traveler& traveler)
+{
+    if (traveler.type == 'P')
+    {
+        P_buffer.enqueue(traveler);
+        // test output
+        cout << "Traveler " << traveler.id << " is waiting in P_buffer" << endl;
+    }
+    else if (traveler.type == 'N')
+    {
+        N_buffer.enqueue(traveler);
+        // test output
+        cout << "Traveler " << traveler.id << " is waiting in N_buffer" << endl;
+    }
+}
+
+// function to assign traveler to Muitnieks or buffer it
+void assignOrBufferTraveler( Traveler& traveler)
+{
+    assignTraveler(traveler);
+    if (traveler.muitnieks_id == -1)
+    {
+        // if no Muitnieks is free, send traveler to buffer
+        bufferTraveler(traveler);
+    }
+}
+
+
 
 // time ticker might be needed, 
     // probably should advance time by some combination of traveler arrival time and leaving time
@@ -307,6 +548,7 @@ int main()
 {
     // cout << "Current working directory: " << fs::current_path() << endl;
     // open file to read
+	//ifstream fin("customs.in");
     ifstream fin("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\input\\customs.i6");
     // ifstream fin("C:\\Users\\marti\\Projects\\Algoritmi\\Muita\\input\\customs.i5");
     if (!fin)
@@ -317,48 +559,19 @@ int main()
     
     // open file to write
     ofstream fout("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\customs.out");
-
+	//ofstream fout("customs.out");
     // read first line from file to get Muitnieki_counts and their default control times
-    int P_Muitnieki_count, N_Muitnieki_count, P_Default_Control_time, N_Default_Control_time;
     fin >> P_Muitnieki_count >> N_Muitnieki_count >> P_Default_Control_time >> N_Default_Control_time;
 
     // test reading first line to int variables
     cout << P_Muitnieki_count << " " << N_Muitnieki_count << " " << P_Default_Control_time << " " << N_Default_Control_time << endl;
 
-    // initialize arrays for Muitnieki control times and availability
-        //  Muitnieki_count + 1 because start count from 1 not 0
-    int P_Muitnieki_control_time[P_Muitnieki_count + 1] = {};
-    bool P_Muitnieki_availability[P_Muitnieki_count + 1] = {};
+    // initialize globals
+    initializeGlobals();
 
-    int N_Muitnieki_control_time[N_Muitnieki_count + 1] = {};
-    bool N_Muitnieki_availability[N_Muitnieki_count + 1] = {};
-    
-    // create buffers for travelers
-    Buffer P_buffer;
-    Buffer N_buffer;
+    // time control variables 
+    unsigned int previous_time = 0, current_time = 0;
 
-    // create departure BST
-    DepartureBST Departures;
-
-    // fill initial values for Muitnieki
-    cout << "P array" << endl;
-    for ( int i = 1 ; i <= P_Muitnieki_count; i++)
-    {
-        P_Muitnieki_control_time[i] = P_Default_Control_time;
-        P_Muitnieki_availability[i] = true;
-        
-        // test initialization
-        cout << i << " " << P_Muitnieki_control_time[i] << " " << P_Muitnieki_availability[i] << endl;
-    }
-    cout << "N array" << endl;
-    for ( int i =1 ; i <= N_Muitnieki_count; i++)
-    {
-        N_Muitnieki_control_time[i] = N_Default_Control_time;
-        N_Muitnieki_availability[i] = true;
-
-        // test initialization        
-        cout << i << " " << N_Muitnieki_control_time[i] << " " << N_Muitnieki_availability[i] << endl;
-    }
     // read custom control times for muitnieki, if any
     char t, m_type, t_type;
     int m_id, custom_time, t_id;
@@ -373,71 +586,55 @@ int main()
         cout << t << " " << m_type << " " << m_id << " " << custom_time << endl;
         fin >> t;
     }
-    if (t == 'X') cout << "nothing" << endl;
-
+    if (t == 'X') 
+    {
+        cout << "nothing" << endl;
+        fout << "nothing" << endl;
+        // cleanup globals
+        cleanupGlobals();
+        return 0;
+    }
     // read and sort travelers
     while (t == 'P' || t == 'N')
     {
         t_type = t;
         fin >> t_id;
         cout << t_type << " " << t_id << endl;
+
         // create traveler object
         Traveler traveler(t_type, t_id);
 
-        // check if traveler is citizen or non-citizen
-        if (traveler.type == 'P')
-        {
-            // check if any of P_Muitnieki are free
-            for (int i = 1; i <= P_Muitnieki_count; i++)
-            {
-                if (P_Muitnieki_availability[i] == true)
-                {
-                    // if free, set availability to false and set traveler Muitnieks ID
-                    P_Muitnieki_availability[i] = false;
-                    traveler.muitnieks_id = i;
-                    // set leaving time for traveler
-                    traveler.leaving_time += t_id + P_Muitnieki_control_time[i];
-                    cout << "Traveler " << traveler.id << " is leaving P_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
-                    Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
-                    break;
-                }
-            }
-            // if no Muitnieks is free, send traveler to P_buffer
-            if (traveler.muitnieks_id == -1)
-            {
-                cout << "Traveler " << traveler.id << " is waiting in P_buffer" << endl;
-                // Done: add traveler to P_buffer
-                P_buffer.enqueue(traveler);
-                
-            }
-        }
-        else if (traveler.type == 'N')
-        {
-            for (int i = 1; i <= N_Muitnieki_count; i++)
-            {
-                if (N_Muitnieki_availability[i] == true)
-                {
-                    // if free, set availability to false and set traveler Muitnieks ID
-                    N_Muitnieki_availability[i] = false;
-                    traveler.muitnieks_id = i;
-                    // set leaving time for traveler
-                    traveler.leaving_time += t_id + N_Muitnieki_control_time[i];
-                    cout << "Traveler " << traveler.id << " is leaving N_Muitnieks " << traveler.muitnieks_id << " at " << traveler.leaving_time << endl;
-                    Departures.addTraveler(traveler.leaving_time, traveler); // add traveler to departure BST
-                    break;
-                }
-            }
-            // if no Muitnieks is free, send traveler to N_buffer
-            if (traveler.muitnieks_id == -1)
-            {
-                cout << "Traveler " << traveler.id << " is waiting in N_buffer" << endl;
-                // DONE: add traveler to N_buffer
-                N_buffer.enqueue(traveler);
-            }
-        }
+        // set current time to traveler arrival time
+        current_time = t_id;
 
+
+        // check if any depatures are in range between previous and current time
+        Departures.processDepartuesInRange(previous_time, current_time);
+
+        // assign traveler to Muitnieks or buffer
+        assignOrBufferTraveler(traveler);
+
+        // update previous time
+        previous_time = current_time;
+
+        // start reading next line
         fin >> t;
-        if (t == 'X') break;
+        if (t == 'X') break; // end of file, won't change current_time
+    }
+    
+    // ********** PROCESS TRAVELERS REMAINING IN BUFFERS **********
+    // previous_time == current_time should be true
+    // could set currrent_time to max possible leaving time
+    // problem might be calculating waiting time for travelers in buffer
+    // possible solution: use previous_time as current time, while current_time sets the max range for departures 
+    // check if there are any travelers left in the buffers
+    // if there are, process them
+	previous_time = Departures.last_processed_node->leaving_time;
+    
+    while (!P_buffer.isEmpty() || !N_buffer.isEmpty())
+    {
+        // check if any depatures are in range between previous and current time
+        Departures.processDepartuesInRange(previous_time, MAX_LEAVING_TIME);
     }
     
 
@@ -488,7 +685,8 @@ int main()
     // buffer for travelers waiting for muitnieki to free up
 
 
-    
+    // cleanup globals
+    cleanupGlobals();
 
     // destroy buffer objects
     // P_buffer.~Buffer();
