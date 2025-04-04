@@ -1,27 +1,28 @@
 #include <iostream>
 #include <fstream>
+#include <stdio.h>
 //#include <filesystem>
 
 using namespace std;
 //namespace fs = std::filesystem;
 /*
     Task List:
-    TODO: 1) Read data from file "customs.in"
+    DONE: 1) Read data from file "customs.in"
                 read file by variables
-    TODO: 2) Output results to "customs.out"
-    TODO: 3) Muitnieki: count [1...99]; 
+    DONE: 2) Output results to "customs.out"
+    DONE: 3) Muitnieki: count [1...99]; 
                 Control time [1...100000];
                 Citizen and non-citizen lines
-    TODO: 4) Travelers: Total count [0...4000000];
+    DONE: 4) Travelers: Total count [0...4000000];
                  Type{P, N};
                  ID/ Arrival time [1...4000000], unique;
-    TODO: 5) Incoming data format from file:
+    DONE: 5) Incoming data format from file:
                 Line 1: P_Muitnieki_count N_Muitnieki_count P_Default_Control_time N_Default_Control_time;
                 Line [2... P_Muitnieki_count + N_Muitnieki_count](can be omitted):
                     T Type Muitnieks_ID Control_time;
                 Lines after that: Traveler_Type Traveler_ID
                 Line last: X
-    TODO: 6) Output format:
+    DONE: 6) Output format:
                 Traveler_ID Leaving_time[1...4000000000]
                 If there are no travelers, output: "nothing"
                 Sorted by Leaving_time, 
@@ -34,6 +35,7 @@ class Buffer;
 class DepartureBST;
 struct Traveler;
 void assignTraveler( Traveler& );
+void assignOrBufferTraveler(Traveler&);
 
 // *********** GLOBALS ***********
 const unsigned int MAX_LEAVING_TIME = 4000000000;
@@ -96,7 +98,7 @@ struct Muitnieks // currently not used
     Muitnieks(int i, int c): id(i), control_time(c) {};
     Muitnieks() {};
 
-    // TODO: if Muitnieks is with travler, set is_busy to true
+    // Done: if Muitnieks is with travler, set is_busy to true
         // when traveler leaves, set is_busy to false
         // could also make an array for Muitnieki to show availability
 };
@@ -109,10 +111,6 @@ struct Traveler
     int muitnieks_id = -1;
     unsigned int leaving_time = 0;
     Traveler(char t, int i): type(t), id(i) {};
-
-    // TODO: function to set leaving time
-        // leaving_time = id + Muitnieki_P/N[i].control_time + time_in_buffer
-
 };
 
 // buffer for each type of Muitnieks
@@ -361,18 +359,25 @@ class DepartureBST
         // find departure times in range between previous(excluding) and current(including) arrival
         void processDepartuesInRange(unsigned int start_time, unsigned int end_time)
         {
-            bool new_departures_added = true;
+            /*bool new_departures_added = true;
             while (new_departures_added)
-            {
-                new_departures_added = false;
+            {*/
+                //new_departures_added = false;
+			cout << "Processing departures in range: " << start_time << " - " << end_time << endl;
                 DepartureNode* node = (last_processed_node != nullptr) ? last_processed_node : root;
 
                 // Traverse BST starting from the last processed node
                 while (node != nullptr)
                 {
+                    // test output
+					cout << "Checking Node with leaving time: " << node->leaving_time << endl;
+
                     if (node->leaving_time > start_time && node->leaving_time <= end_time)
                     {
                         // process all travelers attached to this node
+						int moment_in_time = node->leaving_time;
+                        // test mit
+						cout << "Departures in range, MIT: " << moment_in_time << endl;
                         TravelerNode* p = node->P_travelers;
                         while (p != nullptr)
                         {
@@ -386,7 +391,7 @@ class DepartureBST
                                 Traveler traveler = P_buffer.dequeue(node->leaving_time);
                                 assignTraveler(traveler);
 
-                                new_departures_added = true; // new departures added
+                                //new_departures_added = true; // new departures added
                             }
                             // go to next traveler, if there is one
                             p = p->next;
@@ -404,7 +409,7 @@ class DepartureBST
                                 Traveler traveler = N_buffer.dequeue(node->leaving_time);
                                 assignTraveler(traveler);
 
-                                new_departures_added = true; // new departures added
+                                //new_departures_added = true; // new departures added
                                 // TODO: could possibly assign traveler directly to the Muitnieks that was just freed up
                             }
                             // go to next traveler, if there is one
@@ -413,14 +418,28 @@ class DepartureBST
 
                         // update last processed node
                         last_processed_node = node;
+                        // test last_processed_node
+                        cout << "in Departure processing, last_processed_node: " << last_processed_node->leaving_time << endl;
                     }
                     // move to the next node in the BST
                     if (node->leaving_time <= end_time)
+                    {
                         node = findNextNode(node);
+						if (node != nullptr && node->leaving_time > end_time)
+						{
+							return; // stop the function if node->leaving_time is greater than end_time
+						}
+                    }
                     else
-                        break;
+                    {
+                        if (node->left == last_processed_node)
+                        {
+                            return; // stop the function if node->left is equal to last_processed_node
+                        }
+                        node = node->left; // go left if the leaving time is greater than end_time
+                    }
                 }
-            }
+            //}
         }
         // helper function to find the next node in the BST
         DepartureNode* findNextNode(DepartureNode* node) 
@@ -548,8 +567,8 @@ int main()
 {
     // cout << "Current working directory: " << fs::current_path() << endl;
     // open file to read
-	//ifstream fin("customs.in");
-    ifstream fin("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\input\\customs.i6");
+	ifstream fin("customs.in");
+    //ifstream fin("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\input\\customs.i7");
     // ifstream fin("C:\\Users\\marti\\Projects\\Algoritmi\\Muita\\input\\customs.i5");
     if (!fin)
     {
@@ -558,8 +577,8 @@ int main()
     }
     
     // open file to write
-    ofstream fout("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\customs.out");
-	//ofstream fout("customs.out");
+    //ofstream fout("C:\\Users\\User\\Desktop\\Studijas LU\\DSunAlgo\\Muita\\customs.out");
+	ofstream fout("customs.out");
     // read first line from file to get Muitnieki_counts and their default control times
     fin >> P_Muitnieki_count >> N_Muitnieki_count >> P_Default_Control_time >> N_Default_Control_time;
 
@@ -607,8 +626,11 @@ int main()
         // set current time to traveler arrival time
         current_time = t_id;
 
-
+        // test time beforre depatrure processing during arrivals
+		cout << "While PN time check: Current_time: " << current_time << " Previous_time: " << previous_time << endl;
         // check if any depatures are in range between previous and current time
+		// test last processed node
+		(Departures.last_processed_node != nullptr) ? cout << "Last processed node: " << Departures.last_processed_node->leaving_time << endl : cout << "Last processed node is null" << endl;
         Departures.processDepartuesInRange(previous_time, current_time);
 
         // assign traveler to Muitnieks or buffer
@@ -629,10 +651,16 @@ int main()
     // possible solution: use previous_time as current time, while current_time sets the max range for departures 
     // check if there are any travelers left in the buffers
     // if there are, process them
-	previous_time = Departures.last_processed_node->leaving_time;
+	
     
-    while (!P_buffer.isEmpty() || !N_buffer.isEmpty())
+    if (!P_buffer.isEmpty() || !N_buffer.isEmpty())
     {
+		// test entry to if statement
+        cout << "Processing travelers in buffers, after arrivals have ended." << endl;
+        if (Departures.last_processed_node != nullptr)
+            previous_time = Departures.last_processed_node->leaving_time;
+		// test previous_time
+		cout << "Previous time: " << previous_time << endl;
         // check if any depatures are in range between previous and current time
         Departures.processDepartuesInRange(previous_time, MAX_LEAVING_TIME);
     }
@@ -681,7 +709,7 @@ int main()
     
     // write departures to file
     Departures.writeToFile(fout);
-
+    fprintf(stderr, "Viss %i\n", 0);
     // buffer for travelers waiting for muitnieki to free up
 
 
